@@ -189,6 +189,34 @@ kbd{min-width:22px;text-align:center;background:#fff;color:#0b2a50;border-radius
 #screen-evaluation .perf-form input,#screen-evaluation .perf-form select,#screen-evaluation .perf-form textarea{width:100%;border:1px solid #dbe4ef;border-radius:5px;background:#fff;padding:6px;color:#173253;font-size:8.5px}
 #screen-evaluation .perf-form textarea{height:48px;resize:vertical}
 
+
+/* === NPOP v7 Workable Staging Layer === */
+.npop-live{position:absolute;z-index:12;font-family:Inter,Segoe UI,Arial,sans-serif;color:#0b2450;box-sizing:border-box}
+.npop-live *{box-sizing:border-box}
+.npop-field{position:absolute;z-index:12;background:#fff;border:1px solid #d9e0e8;border-radius:4px;color:#111827;font-weight:600;font-size:clamp(7px,.72vw,12px);padding:0 .45em;outline:none}
+.npop-field:focus{border-color:#1267e9;box-shadow:0 0 0 1px rgba(18,103,233,.18)}
+.npop-select{appearance:auto}
+.npop-output{position:absolute;z-index:13;display:flex;align-items:center;justify-content:flex-end;background:#fff;font-weight:800;font-size:clamp(7px,.82vw,13px);padding:0 .35em;white-space:nowrap}
+.npop-output.green{color:#16924c;background:#fff}.npop-output.blue{color:#1267e9;background:#fff}.npop-output.red{color:#d81624;background:#fff}
+.npop-click{position:absolute;z-index:14;border:0;background:transparent;cursor:pointer}
+.npop-click:focus-visible{outline:2px solid #1267e9}
+.npop-live-table{position:absolute;z-index:12;background:#fff;border:1px solid #e1e7ef;border-radius:5px;overflow:auto;color:#0c2242}
+.npop-live-table table{width:100%;border-collapse:collapse;font-size:clamp(6px,.63vw,10px)}
+.npop-live-table th{position:sticky;top:0;background:#f6f9fd;color:#304865;font-weight:800;text-align:left;padding:.55em .65em;border-bottom:1px solid #dfe6ef}
+.npop-live-table td{padding:.55em .65em;border-bottom:1px solid #e8edf4;vertical-align:middle}
+.npop-live-table tr[data-emp]{cursor:pointer}.npop-live-table tr[data-emp]:hover{background:#f7fbff}
+.npop-badge{display:inline-block;border-radius:9px;padding:.24em .6em;font-size:.9em;font-weight:800}.npop-badge.active{background:#e8f7ee;color:#16854b}.npop-badge.inactive{background:#ffe9ea;color:#c92332}
+.npop-mini-input{width:62px;border:1px solid #d8e0e8;border-radius:4px;padding:4px;font:inherit;background:#fff}
+.npop-mini-select{border:1px solid #d8e0e8;border-radius:4px;padding:4px;font:inherit;background:#fff}
+.npop-test-modal{position:absolute;inset:0;z-index:40;background:rgba(4,20,40,.42);display:none;align-items:center;justify-content:center}
+.npop-test-modal.open{display:flex}.npop-modal-card{width:47%;background:#fff;border-radius:10px;box-shadow:0 18px 55px rgba(0,0,0,.28);padding:2%;color:#102749}
+.npop-modal-card h3{margin:0 0 1.2%;font-size:clamp(12px,1.35vw,21px)}
+.npop-modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.npop-modal-grid label{font-size:clamp(7px,.7vw,11px);font-weight:800}.npop-modal-grid input,.npop-modal-grid select{width:100%;padding:7px;border:1px solid #d7e0ea;border-radius:5px;margin-top:4px;font:inherit}
+.npop-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.npop-btn{border:1px solid #cbd8e7;border-radius:5px;padding:7px 12px;background:#fff;color:#145dbb;font-weight:800;cursor:pointer}.npop-btn.primary{background:#0b65e5;color:#fff;border-color:#0b65e5}
+.npop-status-toast{position:absolute;right:2%;bottom:2%;z-index:50;background:#0b2443;color:#fff;padding:9px 13px;border-radius:6px;font-size:11px;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none}.npop-status-toast.show{opacity:1;transform:none}
+/* hide only the original Sales action hotspots; v7 uses them as real workflow buttons */
+#screen-sales .actionspot{z-index:6}
+
 </style>
 </head>
 <body>
@@ -1307,6 +1335,115 @@ function initV6Performance(){
   setWorkflowMode("checklist");
 }
 setTimeout(initV6Performance,180);
+
+
+/* === NPOP v7 Workable Staging Logic === */
+const NPOP_TEST_KEY='npop_workable_staging_v7';
+function npopDefaults(){return {
+  employees:[
+    {id:'1001',name:'Aymen Khan',first:'Aymen',last:'Khan',position:'Manager',locations:'Main Street',status:'Active',wage:23.00,phone:'(416) 555-0123',email:'aymen.khan@email.com',country:'Canada'},
+    {id:'1002',name:'Lesly Martinez',first:'Lesly',last:'Martinez',position:'Supervisor',locations:'Main Street, Meadowvale',status:'Active',wage:19.50,phone:'(647) 555-0187',email:'lesly@email.com',country:'Canada'},
+    {id:'1003',name:'Laura Smith',first:'Laura',last:'Smith',position:'Cashier',locations:'Main Street',status:'Active',wage:17.50,phone:'(416) 555-0144',email:'laura@email.com',country:'Canada'},
+    {id:'1004',name:'Tony Nguyen',first:'Tony',last:'Nguyen',position:'Cook',locations:'Main Street, Financial',status:'Active',wage:18.00,phone:'(647) 555-0166',email:'tony@email.com',country:'Canada'},
+    {id:'2001',name:'Mehmet Demir',first:'Mehmet',last:'Demir',position:'Manager',locations:'Meadowvale',status:'Active',wage:23.00,phone:'(905) 555-0111',email:'mehmet@email.com',country:'Canada'},
+    {id:'3001',name:'Fatima Ali',first:'Fatima',last:'Ali',position:'Cashier',locations:'Financial',status:'Inactive',wage:17.25,phone:'(416) 555-0177',email:'fatima@email.com',country:'Canada'}
+  ],
+  salesDraft:{net:8245.50,discount:245.50,tax1:1040.70,tax2:80.05,debit:1275,paid:250,paidTax:32.50,b100:48,b50:24,b20:35,b10:10,b5:3,c2:4,c1:6,s100:2,s50:4,s20:10,s10:8,s5:10,notes:''},
+  salesRecords:[],
+  timeEntries:[
+    {id:'1003',name:'Laura Smith',position:'Cashier',scheduled:'10:00 AM - 06:00 PM',in:'09:58',out:'18:02',break:0.5,status:'Present',notes:''},
+    {id:'2001',name:'Mehmet Demir',position:'Manager',scheduled:'10:00 AM - 06:00 PM',in:'10:01',out:'18:00',break:0.5,status:'Present',notes:''},
+    {id:'1004',name:'Tony Nguyen',position:'Cook',scheduled:'10:00 AM - 06:00 PM',in:'',out:'',break:0,status:'Sick',notes:'Doctor note'},
+    {id:'1001',name:'Aymen Khan',position:'Manager',scheduled:'10:00 AM - 06:00 PM',in:'10:00',out:'18:00',break:0.5,status:'Replacement',notes:'Covered shift'},
+    {id:'1002',name:'Lesly Martinez',position:'Supervisor',scheduled:'04:00 PM - 10:00 PM',in:'16:05',out:'22:10',break:0.5,status:'Late',notes:'Traffic'}
+  ],
+  timeStatus:'Draft', payrollStatus:'In Progress'
+}}
+let npopTest;
+try{npopTest=JSON.parse(localStorage.getItem(NPOP_TEST_KEY))||npopDefaults()}catch(e){npopTest=npopDefaults()}
+function npopPersist(){localStorage.setItem(NPOP_TEST_KEY,JSON.stringify(npopTest))}
+function npopFlash(msg){let t=document.getElementById('npopStatusToast');if(!t){t=document.createElement('div');t.id='npopStatusToast';t.className='npop-status-toast';document.querySelector('.viewer').appendChild(t)}t.textContent=msg;t.classList.add('show');clearTimeout(window._npopToast);window._npopToast=setTimeout(()=>t.classList.remove('show'),1800)}
+function field(parent,id,l,t,w,h,val,type='number'){let e=document.createElement('input');e.className='npop-field';e.id=id;e.type=type;e.value=val??'';Object.assign(e.style,{left:l+'%',top:t+'%',width:w+'%',height:h+'%'});parent.appendChild(e);return e}
+function output(parent,id,l,t,w,h,cls=''){let e=document.createElement('div');e.className='npop-output '+cls;e.id=id;Object.assign(e.style,{left:l+'%',top:t+'%',width:w+'%',height:h+'%'});parent.appendChild(e);return e}
+function clickbox(parent,l,t,w,h,fn,title=''){let b=document.createElement('button');b.className='npop-click';b.title=title;Object.assign(b.style,{left:l+'%',top:t+'%',width:w+'%',height:h+'%'});b.onclick=fn;parent.appendChild(b);return b}
+function money2(v){return '$ '+Number(v||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+function timeHours(start,end,br){if(!start||!end)return 0;let a=start.split(':').map(Number),b=end.split(':').map(Number);let m1=a[0]*60+a[1],m2=b[0]*60+b[1];if(m2<m1)m2+=1440;return Math.max(0,(m2-m1)/60-Number(br||0))}
+
+function mountSalesLive(){
+ const p=document.getElementById('screen-sales');if(!p||p.dataset.liveMounted)return;p.dataset.liveMounted='1';
+ const d=npopTest.salesDraft;
+ const f={};
+ [['net',26.45,19.70],['discount',26.45,23.55],['tax1',26.45,27.35],['tax2',26.45,31.15],['debit',47.85,20.05],['paid',47.85,23.95],['paidTax',49.0,33.1]].forEach(x=>f[x[0]]=field(p,'sales_'+x[0],x[1],x[2],6.8,2.75,d[x[0]]));
+ const denom=[['b100',23.45,50.0],['b50',23.45,53.7],['b20',23.45,57.25],['b10',23.45,60.95],['b5',23.45,64.5],['c2',44.35,52.25],['c1',44.35,55.8],['s100',63.55,52.25],['s50',63.55,55.75],['s20',63.55,59.2],['s10',63.55,62.55],['s5',63.55,65.95]];
+ denom.forEach(x=>f[x[0]]=field(p,'sales_'+x[0],x[1],x[2],4.0,2.6,d[x[0]]));
+ const oTax=output(p,'sales_totalTax',27.6,35.25,5.5,2.8,'blue');
+ const oExpected=output(p,'sales_expected',69.9,35.15,5.8,3.0,'green');
+ const oCash=output(p,'sales_cash',27.0,68.45,7.5,3.1,'blue');
+ const oCoin=output(p,'sales_coin',49.1,68.45,5.4,3.1,'');
+ const oSafe=output(p,'sales_safe',68.4,68.45,7.0,3.1,'green');
+ const oDeposit=output(p,'sales_deposit',91.0,28.15,6.1,3.2,'blue');
+ const oShort=output(p,'sales_short',84.0,43.9,11.6,5.0,'red');oShort.style.justifyContent='center';oShort.style.fontSize='clamp(9px,1.25vw,20px)';
+ function recalc(){Object.keys(f).forEach(k=>{d[k]=Number(f[k].value||0)});let taxes=d.tax1+d.tax2,expected=d.net+d.tax1+d.tax2-d.debit-d.paid;let cash=d.b100*100+d.b50*50+d.b20*20+d.b10*10+d.b5*5;let coin=d.c2*25+d.c1*25;let safe=d.s100*100+d.s50*50+d.s20*20+d.s10*10+d.s5*5+coin;let deposit=expected-cash;let over=cash-expected;oTax.textContent=money2(taxes);oExpected.textContent=money2(expected);oCash.textContent=money2(cash);oCoin.textContent=money2(coin);oSafe.textContent=money2(safe);oDeposit.textContent=money2(deposit);oShort.textContent=(over<0?'SHORT ':'OVER ')+money2(Math.abs(over));oShort.className='npop-output '+(over<0?'red':'green');npopPersist()}
+ Object.values(f).forEach(e=>e.addEventListener('input',recalc));recalc();
+ // Wire exact approved buttons without changing their appearance.
+ const acts=[...p.querySelectorAll('.actionspot')];
+ if(acts[0])acts[0].onclick=e=>{e.stopPropagation();npopTest.salesDraft=npopDefaults().salesDraft;npopPersist();show('sales');npopFlash('Sales entry reset')};
+ if(acts[1])acts[1].onclick=e=>{e.stopPropagation();recalc();npopPersist();npopFlash('Draft saved')};
+ function submit(next){recalc();if(d.paid>0&&!window._npopPaidReceipt){npopFlash('Paid Out receipt is required before submit');return}npopTest.salesRecords.unshift({date:new Date().toISOString(),restaurant:'Main Street',...JSON.parse(JSON.stringify(d)),status:'Submitted'});npopPersist();npopFlash(next?'Submitted — next restaurant':'Sales entry submitted')}
+ if(acts[2])acts[2].onclick=e=>{e.stopPropagation();submit(false)};
+ if(acts[3])acts[3].onclick=e=>{e.stopPropagation();submit(true)};
+ // Add a real file selector over the paid-out receipt row.
+ let fi=document.createElement('input');fi.type='file';fi.accept='.jpg,.jpeg,.png,.pdf';fi.className='npop-live';Object.assign(fi.style,{left:'15.0%',top:'86.8%',width:'16.4%',height:'3.4%',opacity:'0.01',cursor:'pointer'});fi.onchange=()=>{window._npopPaidReceipt=fi.files&&fi.files[0]?fi.files[0].name:'';npopFlash(window._npopPaidReceipt?'Paid Out receipt selected':'')};p.appendChild(fi);
+}
+
+function employeeRows(){return npopTest.employees||[]}
+function mountEmployeesLive(){
+ const p=document.getElementById('screen-employees');if(!p||p.dataset.liveMounted)return;p.dataset.liveMounted='1';
+ let search=field(p,'emp_search',15.6,18.55,15.6,3.2,'','search');search.placeholder='Search by Name, Employee ID or Phone...';search.style.fontWeight='400';
+ let table=document.createElement('div');table.className='npop-live-table';table.id='empLiveTable';Object.assign(table.style,{left:'14.75%',top:'22.75%',width:'63.3%',height:'29.0%'});p.appendChild(table);
+ function draw(){let q=(search.value||'').toLowerCase();let rows=employeeRows().filter(e=>!q||[e.id,e.name,e.phone,e.position,e.locations].join(' ').toLowerCase().includes(q));table.innerHTML='<table><thead><tr><th>Employee ID</th><th>Name</th><th>Position</th><th>Locations</th><th>Status</th><th>Hourly Wage</th><th>Phone</th><th>Last Date Worked</th></tr></thead><tbody>'+rows.map(e=>'<tr data-emp="'+e.id+'"><td>'+e.id+'</td><td><b>'+e.name+'</b></td><td>'+e.position+'</td><td>'+e.locations+'</td><td><span class="npop-badge '+e.status.toLowerCase()+'">'+e.status+'</span></td><td>'+money2(e.wage)+'</td><td>'+e.phone+'</td><td>'+(e.lastDate||'—')+'</td></tr>').join('')+'</tbody></table>';table.querySelectorAll('tr[data-emp]').forEach(tr=>tr.onclick=()=>{let e=employeeRows().find(x=>x.id===tr.dataset.emp);if(e){npopFlash(e.name+' · '+e.position+' · '+e.locations)}})}
+ search.oninput=draw;draw();
+ clickbox(p,85.7,8.5,12.8,3.8,()=>show('addemployee'),'Add Employee');
+}
+
+function mountAddEmployeeLive(){
+ const p=document.getElementById('screen-addemployee');if(!p||p.dataset.liveMounted)return;p.dataset.liveMounted='1';
+ const vals={first:'',middle:'',last:'',dob:'',gender:'Male',email:'',gov:'',province:'Ontario',phone:'',alt:'',addr1:'',addr2:'',city:'',postal:'',country:'Canada'};let c=vals;
+ // Country toggles retain approved buttons visually; click areas are invisible.
+ clickbox(p,15.0,32.5,7.0,3.8,()=>{c.country='Canada';npopFlash('Canada selected')});clickbox(p,22.1,32.5,8.5,3.8,()=>{c.country='United States';npopFlash('United States selected — SSN/State logic active')});
+ const cfg=[['first',15.0,45.35,19.2],['middle',35.55,45.35,17.8],['last',54.9,45.35,19.0],['dob',15.0,52.75,19.2],['gender',35.55,52.75,17.8],['email',54.9,52.75,19.0],['gov',23.0,60.75,19.9],['province',44.55,60.75,29.2],['phone',15.0,68.1,28.1],['alt',44.55,68.1,29.2],['addr1',15.0,75.35,28.1],['addr2',44.55,75.35,29.2],['city',15.0,82.55,19.2],['postal',54.9,82.55,19.0]];
+ const es={};cfg.forEach(x=>{let type=x[0]==='email'?'email':x[0]==='dob'?'date':'text';es[x[0]]=field(p,'add_'+x[0],x[1],x[2],x[3],3.25,'',type);es[x[0]].style.fontWeight='500'});
+ // gender should behave as select while preserving exact location
+ let g=document.createElement('select');g.className='npop-field npop-select';g.id='add_gender_select';g.innerHTML='<option>Male</option><option>Female</option><option>Other</option><option>Prefer not to say</option>';Object.assign(g.style,{left:'35.55%',top:'52.75%',width:'17.8%',height:'3.25%'});p.appendChild(g);es.gender.style.display='none';es.gender=g;
+ function openEmployment(){['first','last','email','phone','addr1','city','postal'].forEach(k=>c[k]=es[k].value.trim());c.middle=es.middle.value.trim();c.dob=es.dob.value;c.gender=es.gender.value;c.gov=es.gov.value.trim();c.province=es.province.value.trim();c.alt=es.alt.value.trim();c.addr2=es.addr2.value.trim();if(!c.first||!c.last||!c.phone){npopFlash('Complete the required employee fields');return}let modal=document.getElementById('npopEmpModal');if(!modal){modal=document.createElement('div');modal.id='npopEmpModal';modal.className='npop-test-modal';modal.innerHTML='<div class="npop-modal-card"><h3>Employment Details</h3><div class="npop-modal-grid"><label>Employee ID<input id="mEmpId"></label><label>Position<select id="mPos"><option>Cook</option><option>Cashier</option><option>Supervisor</option><option>Manager</option><option>RGM</option><option>Admin</option><option>Director</option></select></label><label>Hourly Wage<input id="mWage" type="number" step="0.01" value="17.50"></label><label>Restaurant<select id="mLoc"><option>Main Street</option><option>Meadowvale</option><option>Financial</option><option>400 Queen</option><option>1402 Queen</option><option>Royal West</option><option>Midland</option></select></label><label>Status<select id="mStatus"><option>Active</option><option>Inactive</option></select></label></div><div class="npop-modal-actions"><button class="npop-btn" id="mCancel">Cancel</button><button class="npop-btn primary" id="mSave">Save Employee</button></div></div>';document.querySelector('.viewer').appendChild(modal)}modal.classList.add('open');document.getElementById('mEmpId').value=String(1000+employeeRows().length+1);document.getElementById('mCancel').onclick=()=>modal.classList.remove('open');document.getElementById('mSave').onclick=()=>{let id=document.getElementById('mEmpId').value.trim();if(employeeRows().some(e=>e.id===id)){npopFlash('Employee ID must be unique');return}let rec={id,name:(c.first+' '+c.last).trim(),first:c.first,last:c.last,position:document.getElementById('mPos').value,locations:document.getElementById('mLoc').value,status:document.getElementById('mStatus').value,wage:Number(document.getElementById('mWage').value||0),phone:c.phone,email:c.email,country:c.country,governmentId:c.gov,province:c.province,address:[c.addr1,c.addr2,c.city,c.postal].filter(Boolean).join(', ')};npopTest.employees.push(rec);npopPersist();modal.classList.remove('open');document.getElementById('screen-employees').dataset.liveMounted='';document.getElementById('empLiveTable')?.remove();document.getElementById('emp_search')?.remove();mountEmployeesLive();show('employees');npopFlash('Employee saved to staging directory')}}
+ clickbox(p,64.2,93.1,10.0,3.8,openEmployment,'Save & Continue');clickbox(p,88.6,11.4,9.8,3.6,()=>show('employees'),'Back to Directory');
+}
+
+function mountTimeLive(){
+ const p=document.getElementById('screen-time');if(!p||p.dataset.liveMounted)return;p.dataset.liveMounted='1';
+ const wrap=document.createElement('div');wrap.className='npop-live-table';wrap.id='timeLiveTable';Object.assign(wrap.style,{left:'13.15%',top:'26.65%',width:'70.7%',height:'45.2%'});p.appendChild(wrap);
+ function draw(){wrap.innerHTML='<table><thead><tr><th>ID</th><th>Employee</th><th>Position</th><th>Scheduled Shift</th><th>Actual In</th><th>Actual Out</th><th>Break</th><th>Total</th><th>Status</th><th>Notes</th></tr></thead><tbody>'+npopTest.timeEntries.map((e,i)=>{let h=timeHours(e.in,e.out,e.break);return '<tr><td>#'+e.id+'</td><td><b>'+e.name+'</b></td><td>'+e.position+'</td><td>'+e.scheduled+'</td><td><input class="npop-mini-input tin" data-i="'+i+'" type="time" value="'+e.in+'"></td><td><input class="npop-mini-input tout" data-i="'+i+'" type="time" value="'+e.out+'"></td><td><input class="npop-mini-input tbr" data-i="'+i+'" type="number" step="0.5" value="'+e.break+'" style="width:45px"></td><td><b class="thours" data-i="'+i+'">'+h.toFixed(2)+'</b></td><td><select class="npop-mini-select tstatus" data-i="'+i+'">'+['Present','Late','Sick','No Show','Replacement'].map(v=>'<option '+(v===e.status?'selected':'')+'>'+v+'</option>').join('')+'</select></td><td><input class="npop-mini-input tnote" data-i="'+i+'" value="'+(e.notes||'')+'" style="width:90px"></td></tr>'}).join('')+'</tbody></table>';wrap.querySelectorAll('input,select').forEach(el=>el.onchange=()=>{let i=Number(el.dataset.i),e=npopTest.timeEntries[i];if(el.classList.contains('tin'))e.in=el.value;if(el.classList.contains('tout'))e.out=el.value;if(el.classList.contains('tbr'))e.break=Number(el.value||0);if(el.classList.contains('tstatus'))e.status=el.value;if(el.classList.contains('tnote'))e.notes=el.value;npopPersist();draw();updateTimeSummary()})}
+ function updateTimeSummary(){let total=npopTest.timeEntries.reduce((a,e)=>a+timeHours(e.in,e.out,e.break),0);let present=npopTest.timeEntries.filter(e=>['Present','Late','Replacement'].includes(e.status)).length;let sick=npopTest.timeEntries.filter(e=>e.status==='Sick').length;let noShow=npopTest.timeEntries.filter(e=>e.status==='No Show').length;let reps=npopTest.timeEntries.filter(e=>e.status==='Replacement').length;let specs=[['ts_sched',16.8,78.5,8.7,3.8,String(npopTest.timeEntries.length)],['ts_present',29.6,78.5,8.7,3.8,String(present)],['ts_sick',42.4,78.5,8.7,3.8,String(sick)],['ts_noshow',55.3,78.5,8.7,3.8,String(noShow)],['ts_rep',68.1,78.5,8.7,3.8,String(reps)],['ts_actual',25.0,84.0,8.0,4.0,total.toFixed(2)]];specs.forEach(x=>{let o=document.getElementById(x[0])||output(p,x[0],x[1],x[2],x[3],x[4],'');o.textContent=x[5];o.style.justifyContent='center';o.style.fontSize='clamp(8px,1.05vw,17px)'})}
+ draw();updateTimeSummary();
+ clickbox(p,62.45,92.0,10.3,3.7,()=>{npopTest.timeStatus='Draft';npopPersist();npopFlash('Time entries draft saved')},'Save Draft');
+ clickbox(p,73.45,92.0,13.0,3.7,()=>{npopTest.timeStatus='Approved';npopPersist();npopFlash('Time entries approved')},'Approve Time Entries');
+ clickbox(p,86.8,92.0,12.1,3.7,()=>{npopTest.timeStatus='Submitted';npopPersist();npopFlash('Time entries submitted to Payroll');setTimeout(()=>show('payroll'),450)},'Submit to Payroll');
+}
+
+function mountPayrollLive(){
+ const p=document.getElementById('screen-payroll');if(!p||p.dataset.liveMounted)return;p.dataset.liveMounted='1';
+ const table=document.createElement('div');table.className='npop-live-table';table.id='payLiveTable';Object.assign(table.style,{left:'8.55%',top:'25.8%',width:'38.7%',height:'23.0%'});p.appendChild(table);
+ function rows(){return employeeRows().filter(e=>e.status==='Active').slice(0,8).map((e,i)=>{let te=npopTest.timeEntries.find(t=>t.id===e.id);let w2=te?timeHours(te.in,te.out,te.break):0;let w1=[40,37.5,32,35.5,40,30,28,0][i]||0;return {e,w1,w2,total:w1+w2}})}
+ function draw(){let rs=rows();table.innerHTML='<table><thead><tr><th>Employee ID</th><th>Employee Name</th><th>Position</th><th>Wage Rate</th><th>Week 1</th><th>Week 2</th><th>Total Hours</th><th>Stat Hours</th><th>Comments</th></tr></thead><tbody>'+rs.map(r=>'<tr><td>'+r.e.id+'</td><td><b>'+r.e.name+'</b></td><td>'+r.e.position+'</td><td>'+money2(r.e.wage)+'</td><td>'+r.w1.toFixed(2)+'</td><td>'+r.w2.toFixed(2)+'</td><td><b>'+r.total.toFixed(2)+'</b></td><td>0.00</td><td>'+(r.w2===0?'No Time Entries':'')+'</td></tr>').join('')+'</tbody></table>';let total=rs.reduce((a,r)=>a+r.total,0),cost=rs.reduce((a,r)=>a+r.total*r.e.wage,0);let top=[['py_emp',9.6,13.15,5,5,String(rs.length)],['py_hours',16.8,13.15,6,5,total.toFixed(2)],['py_stat',23.3,13.15,6,5,'0.00'],['py_cost',29.8,13.15,8,5,money2(cost)],['py_lab',37.2,13.15,7,5,'22.8%']];top.forEach(x=>{let o=document.getElementById(x[0])||output(p,x[0],x[1],x[2],x[3],x[4],'');o.textContent=x[5];o.style.justifyContent='center';o.style.fontSize='clamp(8px,1.15vw,18px)'});}
+ draw();
+ clickbox(p,8.6,65.35,6.5,3.8,()=>{npopTest.payrollStatus='Draft';npopPersist();npopFlash('Payroll draft saved')},'Save Draft');
+ clickbox(p,15.8,65.35,7.3,3.8,()=>npopFlash('Payroll validation complete'),'Run Validation');
+ clickbox(p,23.2,65.35,8.4,3.8,()=>{npopTest.payrollStatus='Approved';npopPersist();npopFlash('Payroll approved')},'Approve Payroll');
+ clickbox(p,32.2,65.35,8.4,3.8,()=>{npopTest.payrollStatus='Submitted';npopPersist();npopFlash('Payroll submitted')},'Submit Payroll');
+}
+
+function mountNpopWorkable(){mountSalesLive();mountEmployeesLive();mountAddEmployeeLive();mountTimeLive();mountPayrollLive();npopFlash('Workable staging mode loaded')}
+setTimeout(mountNpopWorkable,260);
 
 </script>
 </body>
