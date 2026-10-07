@@ -998,3 +998,316 @@ function renderChallenge(){
       <td><select class="wf-select ch-status" data-section="${x.section}" data-index="${x.index}">
         ${["Appears Valid","Needs Review","Potential Challenge"].map(v=>`<option ${v===st.challengeAssessment?"selected":""}>${v}</option>`).join("")}
       </select></td>
+      <td><input class="wf-input challenge-note" data-section="${x.section}" data-index="${x.index}" value="${(st.challengeNotes||"").replace(/"/g,"&quot;")}" placeholder="Operations notes"></td>`;
+    rows.appendChild(tr);
+  });
+  rows.querySelectorAll(".ch-status").forEach(el=>el.onchange=e=>{
+    const st=evalState.sections[e.target.dataset.section][Number(e.target.dataset.index)];
+    st.challengeAssessment=e.target.value;saveAll();renderChallenge();
+  });
+  rows.querySelectorAll(".challenge-note").forEach(el=>el.onchange=e=>{
+    const st=evalState.sections[e.target.dataset.section][Number(e.target.dataset.index)];
+    st.challengeNotes=e.target.value;saveAll();
+  });
+  document.getElementById("chTotal").textContent=records.length;
+  document.getElementById("chValid").textContent=records.filter(x=>x.state.challengeAssessment==="Appears Valid").length;
+  document.getElementById("chReview").textContent=records.filter(x=>x.state.challengeAssessment==="Needs Review").length;
+  document.getElementById("chPotential").textContent=records.filter(x=>x.state.challengeAssessment==="Potential Challenge").length;
+  document.getElementById("chEvidence").textContent=records.filter(x=>x.state.evidenceName).length;
+  document.getElementById("chPrev").textContent=records.filter(x=>x.state.previous).length;
+}
+
+function observedScoreData(){
+  let possible=0,earnedPts=0,observedCount=0,totalCount=0;
+  SECTION_ORDER.forEach(k=>{
+    if(k==="MYSTERY"){ if(Number(evalState.mysteryScore||0)>0){possible+=100;earnedPts+=Number(evalState.mysteryScore||0);observedCount++;} totalCount++; return; }
+    R2_SECTIONS[k].items.forEach((r,i)=>{
+      totalCount++;
+      const st=evalState.sections[k][i];
+      if(!st || st.status==="Not Observed" || r[2]===null)return;
+      possible+=Number(r[2]);observedCount++;
+      if(st.status==="Compliant" || st.status==="N/A")earnedPts+=Number(r[2]);
+    });
+  });
+  return {possible,earnedPts,observedCount,totalCount,pct:possible?earnedPts/possible*100:0,complete:totalCount?observedCount/totalCount*100:0};
+}
+function comparisonRecords(){
+  const arr=[];
+  SECTION_ORDER.forEach(k=>{
+    if(k==="MYSTERY")return;
+    R2_SECTIONS[k].items.forEach((r,i)=>{
+      const st=evalState.sections[k][i]; if(!st)return;
+      const issue=["Needs Attention","Non-Compliant"].includes(st.status);
+      if(!st.previous && !issue)return;
+      let comparison="Stable";
+      if(st.previous && issue)comparison="Repeat Risk";
+      else if(st.previous && (st.status==="Compliant" || st.verified))comparison="Improved";
+      else if(!st.previous && issue)comparison="New Finding";
+      arr.push({section:k,sectionTitle:R2_SECTIONS[k].title,index:i,code:r[0],requirement:r[1],state:st,comparison});
+    });
+  });
+  return arr;
+}
+function renderComparison(){
+  const data=observedScoreData(), records=comparisonRecords();
+  document.getElementById("cmpInternal").textContent=data.pct.toFixed(1)+"%";
+  document.getElementById("cmpComplete").textContent=data.complete.toFixed(0)+"%";
+  const repeats=records.filter(x=>x.comparison==="Repeat Risk").length;
+  const improved=records.filter(x=>x.comparison==="Improved").length;
+  const newFindings=records.filter(x=>x.comparison==="New Finding").length;
+  document.getElementById("cmpRepeat").textContent=repeats;
+  document.getElementById("cmpRepeatSide").textContent=repeats;
+  document.getElementById("cmpImproved").textContent=improved;
+  document.getElementById("cmpNew").textContent=newFindings;
+  const rows=document.getElementById("comparisonRows");rows.innerHTML="";
+  records.forEach(x=>{
+    const st=x.state,tr=document.createElement("tr");
+    const css=x.comparison==="Improved"?"status-good":x.comparison==="Repeat Risk"?"status-risk":x.comparison==="New Finding"?"status-new":"status-stable";
+    tr.innerHTML=`<td><b>${x.code}</b><br><span style="color:#64748b">${x.sectionTitle}</span></td>
+      <td>${st.comment||x.requirement}</td>
+      <td>${st.previous?'<span class="tag red">Missed</span>':'—'}</td>
+      <td>${st.status}${st.verified?' · Verified':''}</td>
+      <td class="${css}">${x.comparison}</td>`;
+    rows.appendChild(tr);
+  });
+}
+
+/* Readiness v5: training completion is now a separate readiness control. */
+overallReadiness = function(){
+  const issues=allIssueRecords();
+  const open=issues.filter(x=>!actionIsVerified(x)).length;
+  const previousOpen=issues.filter(x=>x.state.previous&&!actionIsVerified(x)).length;
+  const training=trainingRecords();
+  const trainingOpen=training.filter(x=>x.state.trainingStatus!=="Completed").length;
+  const notObserved=SECTION_ORDER.reduce((sum,k)=>{
+    if(k==="MYSTERY") return sum+(evalState.mysteryScore>0?0:1);
+    return sum+R2_SECTIONS[k].items.filter((r,i)=>evalState.sections[k][i].status==="Not Observed").length;
+  },0);
+  const totalControls=1+SECTION_ORDER.filter(k=>k!=="MYSTERY").reduce((sum,k)=>sum+R2_SECTIONS[k].items.length,0);
+  const unresolved=open+notObserved+trainingOpen;
+  let pct=Math.max(0,Math.round((totalControls-unresolved)/totalControls*100));
+  if(previousOpen>0)pct=Math.min(pct,94);
+  if(trainingOpen>0)pct=Math.min(pct,96);
+  if(open===0 && notObserved===0 && trainingOpen===0)pct=100;
+  return {pct,open,previousOpen,trainingOpen,notObserved,totalControls};
+};
+
+/* Replace the v4 mode switcher with all six connected views. */
+setWorkflowMode = function(mode){
+  workflowMode=mode;
+  document.querySelectorAll(".workflow-mode").forEach(b=>b.classList.toggle("active",b.dataset.mode===mode));
+  const checklist=document.getElementById("evalLive");
+  const footer=document.querySelector("#screen-evaluation .eval-footer");
+  const pages={
+    corrective:document.getElementById("correctivePage"),
+    training:document.getElementById("trainingPage"),
+    challenge:document.getElementById("challengePage"),
+    readiness:document.getElementById("readinessPage"),
+    comparison:document.getElementById("comparisonPage")
+  };
+  checklist.style.display=mode==="checklist"?"block":"none";
+  if(footer)footer.style.display=mode==="checklist"?"flex":"none";
+  Object.keys(pages).forEach(k=>pages[k]&&pages[k].classList.toggle("active",mode===k));
+  if(mode==="corrective")renderCorrectiveActions();
+  if(mode==="training")renderTraining();
+  if(mode==="challenge")renderChallenge();
+  if(mode==="readiness")renderReadiness();
+  if(mode==="comparison")renderComparison();
+};
+
+function initV5Workflow(){
+  document.querySelectorAll(".workflow-mode").forEach(b=>b.onclick=()=>setWorkflowMode(b.dataset.mode));
+  document.getElementById("refreshTraining").onclick=()=>{renderTraining();toast("Training register refreshed")};
+  document.getElementById("refreshChallenge").onclick=()=>{renderChallenge();toast("Challenge review refreshed")};
+  document.getElementById("refreshComparison").onclick=()=>{renderComparison();toast("Round comparison refreshed")};
+  /* Give the existing two training-required demo findings meaningful initial states. */
+  try{
+    if(!evalState.sections.FS[24].trainingStatus)evalState.sections.FS[24].trainingStatus="In Progress";
+    if(!evalState.sections.FS[44].trainingStatus)evalState.sections.FS[44].trainingStatus="Assigned";
+    if(!evalState.sections.FS[24].challengeAssessment)evalState.sections.FS[24].challengeAssessment="Needs Review";
+    if(!evalState.sections.FS[33].challengeAssessment)evalState.sections.FS[33].challengeAssessment="Needs Review";
+    if(!evalState.sections.FS[44].challengeAssessment)evalState.sections.FS[44].challengeAssessment="Appears Valid";
+    saveAll();
+  }catch(e){}
+  setWorkflowMode("checklist");
+}
+setTimeout(initV5Workflow,120);
+
+
+
+/* === v6 Performance Accountability Logic === */
+(function(){
+  const originalLoadDetail = loadDetail;
+  loadDetail = function(){
+    originalLoadDetail();
+    if(currentSection==="MYSTERY")return;
+    const st=secState()[selectedReq]; if(!st)return;
+    if(document.getElementById("dEmployee")) document.getElementById("dEmployee").value=st.responsibleEmployee||"";
+    if(document.getElementById("dAccountType")) document.getElementById("dAccountType").value=st.accountabilityType||"Unassigned";
+  };
+
+  const originalSaveCurrentDetail = saveCurrentDetail;
+  saveCurrentDetail = function(){
+    if(currentSection!=="MYSTERY"){
+      const st=secState()[selectedReq];
+      if(st){
+        if(document.getElementById("dEmployee")) st.responsibleEmployee=document.getElementById("dEmployee").value.trim();
+        if(document.getElementById("dAccountType")) st.accountabilityType=document.getElementById("dAccountType").value;
+      }
+    }
+    originalSaveCurrentDetail();
+  };
+})();
+
+function allPerformanceFindings(){
+  const arr=[];
+  SECTION_ORDER.forEach(k=>{
+    if(k==="MYSTERY")return;
+    R2_SECTIONS[k].items.forEach((r,i)=>{
+      const st=evalState.sections[k][i];if(!st)return;
+      if(!["Needs Attention","Non-Compliant"].includes(st.status))return;
+      arr.push({section:k,sectionTitle:R2_SECTIONS[k].title,index:i,code:r[0],requirement:r[1],state:st});
+    });
+  });
+  return arr;
+}
+function managerAttributed(x){
+  const st=x.state;
+  return st.responsibility==="Manager" ||
+         (st.responsibleEmployee&&/manager/i.test(st.responsibleEmployee)) ||
+         st.accountabilityType==="Manager Oversight";
+}
+function recognitionData(){
+  if(!evalState.recognition) evalState.recognition=[
+    {employee:"John Michael",role:"Manager",note:"Maintained accurate training records and supported corrective-action follow-up.",date:"Aug 21, 2026"},
+    {employee:"Laura Gomez",role:"Supervisor",note:"Strong station organization and proactive follow-up on sanitation standards.",date:"Aug 21, 2026"}
+  ];
+  return evalState.recognition;
+}
+function renderManagerPerformance(){
+  const findings=allPerformanceFindings().filter(managerAttributed);
+  const rows=document.getElementById("managerPerfRows");if(!rows)return;rows.innerHTML="";
+  findings.forEach(x=>{
+    const st=x.state,tr=document.createElement("tr");
+    const train=st.training==="Yes"?(st.trainingStatus||"Assigned"):"Not Required";
+    const action=st.actionStatus||"Needs Attention";
+    const status=st.verified?'<span class="perf-tag good">Verified</span>':action==="Manager Completed"?'<span class="perf-tag info">Manager Completed</span>':'<span class="perf-tag warn">'+action+'</span>';
+    tr.innerHTML=`<td><b>${x.code}</b><br><span style="color:#64748b">${x.sectionTitle}</span></td>
+      <td>${st.comment||x.requirement}</td>
+      <td>${st.accountabilityType||st.responsibility||"Unassigned"}</td>
+      <td>${st.corrective||"Required"}</td>
+      <td>${train}</td><td>${status}</td>`;
+    rows.appendChild(tr);
+  });
+
+  const obs=observedScoreData(),ready=overallReadiness(),allIssues=allIssueRecords();
+  document.getElementById("mpInternal").textContent=obs.pct.toFixed(1)+"%";
+  document.getElementById("mpReadiness").textContent=ready.pct+"%";
+  document.getElementById("mpManagerFindings").textContent=findings.length;
+  document.getElementById("mpRepeat").textContent=findings.filter(x=>x.state.previous).length;
+  document.getElementById("mpVerified").textContent=findings.filter(x=>x.state.verified||x.state.actionStatus==="Operations Verified").length;
+
+  const actionTotal=findings.length, actionDone=findings.filter(x=>x.state.verified||x.state.actionStatus==="Operations Verified").length;
+  const actionRate=actionTotal?Math.round(actionDone/actionTotal*100):100;
+  document.getElementById("mpActionBar").style.width=actionRate+"%";
+  document.getElementById("mpActionText").textContent=actionDone+" of "+actionTotal+" manager-attributed actions Operations Verified ("+actionRate+"%).";
+
+  const tr=findings.filter(x=>x.state.training==="Yes"),trDone=tr.filter(x=>x.state.trainingStatus==="Completed").length;
+  const trRate=tr.length?Math.round(trDone/tr.length*100):100;
+  document.getElementById("mpTrainingBar").style.width=trRate+"%";
+  document.getElementById("mpTrainingText").textContent=trDone+" of "+tr.length+" manager-attributed training items completed ("+trRate+"%).";
+
+  const mr=recognitionData().filter(r=>r.role==="Manager");
+  document.getElementById("managerRecognition").innerHTML=mr.length?mr.map(r=>`<div class="recognition-card"><b>${r.employee}</b>${r.note}</div>`).join(""):"<p>No recognition recorded yet.</p>";
+}
+function employeeFindingRecords(){
+  return allPerformanceFindings().filter(x=>x.state.responsibleEmployee && !managerAttributed(x));
+}
+function renderEmployeePerformance(){
+  const findings=employeeFindingRecords(),recs=recognitionData();
+  const names=new Set(findings.map(x=>x.state.responsibleEmployee).filter(Boolean));
+  document.getElementById("epEmployees").textContent=names.size;
+  document.getElementById("epFindings").textContent=findings.length;
+  const training=findings.filter(x=>x.state.training==="Yes");
+  document.getElementById("epTraining").textContent=training.length;
+  document.getElementById("epTrainingDone").textContent=training.filter(x=>x.state.trainingStatus==="Completed").length;
+  document.getElementById("epRepeat").textContent=findings.filter(x=>x.state.previous).length;
+  document.getElementById("epRecognition").textContent=recs.length;
+
+  const rows=document.getElementById("employeePerfRows");rows.innerHTML="";
+  findings.forEach(x=>{
+    const st=x.state,tr=document.createElement("tr");
+    tr.innerHTML=`<td><b>${st.responsibleEmployee}</b><br><span style="color:#64748b">${st.responsibility||""}</span></td>
+      <td><b>${x.code}</b><br>${x.sectionTitle}</td>
+      <td>${st.comment||x.requirement}</td>
+      <td>${st.accountabilityType||"Unassigned"}</td>
+      <td>${st.training==="Yes"?(st.trainingTopic||"Training Required")+" · "+(st.trainingStatus||"Assigned"):"No training assigned"}</td>
+      <td>${st.verified?'<span class="perf-tag good">Verified</span>':'<span class="perf-tag warn">Open</span>'}</td>`;
+    rows.appendChild(tr);
+  });
+  recs.forEach(r=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td><b>${r.employee}</b><br><span style="color:#64748b">${r.role}</span></td>
+      <td>Recognition</td><td>${r.note}</td><td><span class="perf-tag good">Positive Recognition</span></td><td>—</td><td><span class="perf-tag good">${r.date}</span></td>`;
+    rows.appendChild(tr);
+  });
+
+  document.getElementById("employeeRecognitionList").innerHTML=recs.length?recs.slice().reverse().map(r=>`<div class="recognition-card"><b>${r.employee} · ${r.role}</b>${r.note}<div style="margin-top:3px;color:#64748b">${r.date}</div></div>`).join(""):"<p>No recognition recorded yet.</p>";
+}
+
+function setPerformanceDefaults(){
+  try{
+    const fs25=evalState.sections.FS[24],fs34=evalState.sections.FS[33],fs45=evalState.sections.FS[44];
+    if(fs25 && !fs25.responsibleEmployee){fs25.responsibility="Manager";fs25.responsibleEmployee="John Michael";fs25.accountabilityType="Manager Oversight";}
+    if(fs34 && !fs34.responsibleEmployee){fs34.responsibility="Supervisor";fs34.responsibleEmployee="Laura Gomez";fs34.accountabilityType="Training Gap";}
+    if(fs45 && !fs45.accountabilityType){fs45.responsibility="Manager";fs45.responsibleEmployee="John Michael";fs45.accountabilityType="Manager Oversight";}
+    recognitionData();saveAll();
+  }catch(e){}
+}
+
+/* Extend the existing v5 mode switcher. */
+const v5SetWorkflowMode=setWorkflowMode;
+setWorkflowMode=function(mode){
+  workflowMode=mode;
+  document.querySelectorAll(".workflow-mode").forEach(b=>b.classList.toggle("active",b.dataset.mode===mode));
+  const checklist=document.getElementById("evalLive"),footer=document.querySelector("#screen-evaluation .eval-footer");
+  const pages={
+    corrective:document.getElementById("correctivePage"),
+    training:document.getElementById("trainingPage"),
+    challenge:document.getElementById("challengePage"),
+    readiness:document.getElementById("readinessPage"),
+    comparison:document.getElementById("comparisonPage"),
+    managerperf:document.getElementById("managerPerfPage"),
+    employeeperf:document.getElementById("employeePerfPage")
+  };
+  checklist.style.display=mode==="checklist"?"block":"none";
+  if(footer)footer.style.display=mode==="checklist"?"flex":"none";
+  Object.keys(pages).forEach(k=>pages[k]&&pages[k].classList.toggle("active",mode===k));
+  if(mode==="corrective")renderCorrectiveActions();
+  if(mode==="training")renderTraining();
+  if(mode==="challenge")renderChallenge();
+  if(mode==="readiness")renderReadiness();
+  if(mode==="comparison")renderComparison();
+  if(mode==="managerperf")renderManagerPerformance();
+  if(mode==="employeeperf")renderEmployeePerformance();
+};
+
+function initV6Performance(){
+  setPerformanceDefaults();
+  document.querySelectorAll(".workflow-mode").forEach(b=>b.onclick=()=>setWorkflowMode(b.dataset.mode));
+  document.getElementById("refreshManagerPerf").onclick=()=>{renderManagerPerformance();toast("Manager performance refreshed")};
+  document.getElementById("addRecognitionBtn").onclick=()=>{const f=document.getElementById("recognitionForm");f.style.display=f.style.display==="none"?"block":"none"};
+  document.getElementById("saveRecognition").onclick=()=>{
+    const employee=document.getElementById("recEmployee").value.trim(),role=document.getElementById("recRole").value,note=document.getElementById("recNote").value.trim();
+    if(!employee||!note){toast("Enter employee and positive observation");return;}
+    recognitionData().push({employee,role,note,date:new Date().toLocaleDateString("en-CA",{year:"numeric",month:"short",day:"2-digit"})});
+    document.getElementById("recEmployee").value="";document.getElementById("recNote").value="";document.getElementById("recognitionForm").style.display="none";
+    saveAll();renderEmployeePerformance();toast("Positive recognition saved");
+  };
+  setWorkflowMode("checklist");
+}
+setTimeout(initV6Performance,180);
+
+</script>
+</body>
+</html>
