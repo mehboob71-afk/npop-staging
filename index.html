@@ -1518,5 +1518,249 @@ function mountNpopWorkable(){
 }
 
 </script>
+
+<script>
+/* === NPOP navigation completion v1 === */
+(function(){
+  function flash(msg){
+    if(typeof npopFlash==='function') npopFlash(msg);
+    else if(typeof toast==='function') toast(msg);
+  }
+  function go(id,label,mode){
+    return function(){
+      const screen=document.getElementById('screen-'+id);
+      if(!screen){ flash((label||id)+' is not activated in this staging build yet.'); return; }
+      if(typeof show==='function') show(id);
+      if(id==='evaluation' && mode){
+        setTimeout(function(){
+          try{ if(typeof setWorkflowMode==='function') setWorkflowMode(mode); }catch(e){}
+        },60);
+      }
+    };
+  }
+  function soon(label){
+    return function(){ flash(label+' is clickable, but its full test screen is not activated yet.'); };
+  }
+  function box(parent,left,top,width,height,fn,title){
+    if(!parent)return;
+    const b=document.createElement('button');
+    b.type='button';
+    b.className='npop-click npop-nav-complete';
+    b.title=title||'';
+    b.setAttribute('aria-label',title||'Navigation');
+    Object.assign(b.style,{
+      left:left+'%',top:top+'%',width:width+'%',height:height+'%',
+      zIndex:'26',background:'transparent',border:'0',position:'absolute',cursor:'pointer'
+    });
+    b.onclick=function(e){e.preventDefault();e.stopPropagation();fn();};
+    parent.appendChild(b);
+  }
+  function clear(parent){
+    if(parent) parent.querySelectorAll('.npop-nav-complete').forEach(function(x){x.remove();});
+  }
+  function addRows(screenId,left,width,rows){
+    const p=document.getElementById('screen-'+screenId); if(!p)return;
+    clear(p);
+    rows.forEach(function(r){
+      const fn=r[4]==='soon'?soon(r[3]):go(r[2],r[3],r[4]);
+      box(p,left,r[0],width,r[1],fn,r[3]);
+    });
+  }
+
+  const evalGo=function(mode,label){return go('evaluation',label,mode||'checklist');};
+
+  // Executive Command Centre sidebar.
+  addRows('executive',0.0,13.9,[
+    [10.7,4.7,'executive','Dashboard'],
+    [15.6,4.2,'evaluation','Operations','checklist'],
+    [20.2,4.2,'restaurant','Restaurants'],
+    [24.7,4.2,'employees','Employees'],
+    [29.2,4.2,'schedule','Scheduling'],
+    [33.8,4.2,'time','Time Entries'],
+    [38.4,4.2,'payroll','Payroll'],
+    [42.9,4.2,'weekly','Reports'],
+    [47.5,4.2,null,'Food Cost','soon'],
+    [52.1,4.2,null,'Inventory','soon'],
+    [56.7,4.2,'evaluation','Food Safety','checklist'],
+    [61.3,4.2,null,'Administration','soon'],
+    [66.0,4.4,null,'Settings','soon']
+  ]);
+
+  // Restaurant dashboard sidebar.
+  addRows('restaurant',0.0,12.3,[
+    [9.0,4.5,'executive','Dashboard'],
+    [13.5,4.3,'evaluation','Operations','checklist'],
+    [18.0,4.2,'restaurant','Restaurants'],
+    [22.5,3.6,'restaurant','All Restaurants'],
+    [25.8,3.7,'restaurant','Restaurant Dashboard'],
+    [29.2,4.2,'employees','Employees'],
+    [33.5,4.2,'schedule','Scheduling'],
+    [37.8,4.2,'time','Time Entries'],
+    [42.0,4.2,'payroll','Payroll'],
+    [46.2,4.2,null,'Food Cost','soon'],
+    [50.4,4.2,null,'Inventory','soon'],
+    [54.6,4.2,'evaluation','Food Safety','checklist'],
+    [58.8,4.2,'weekly','Reports'],
+    [63.0,4.2,null,'Administration','soon'],
+    [67.3,4.2,null,'Settings','soon']
+  ]);
+
+  // Sales Entry sidebar, including expanded Restaurants group.
+  addRows('sales',0.0,11.7,[
+    [11.4,4.2,'executive','Dashboard'],
+    [15.6,4.2,'evaluation','Operations','checklist'],
+    [19.8,3.8,'restaurant','Restaurants'],
+    [23.4,3.4,'restaurant','Restaurant Dashboard'],
+    [26.7,3.4,'sales','Sales Entry'],
+    [29.9,3.4,null,'Operational Log','soon'],
+    [33.1,3.4,null,'Task Manager','soon'],
+    [37.1,4.0,'employees','Employees'],
+    [41.1,4.0,'schedule','Scheduling'],
+    [45.1,4.0,'time','Time Entries'],
+    [49.1,4.0,'payroll','Payroll'],
+    [53.1,4.0,'weekly','Reports'],
+    [57.1,4.0,null,'Food Cost','soon'],
+    [61.1,4.0,null,'Inventory','soon'],
+    [65.1,4.0,'evaluation','Food Safety','checklist'],
+    [69.1,4.0,null,'Administration','soon'],
+    [73.1,4.0,null,'Settings','soon']
+  ]);
+
+  // Employee Management / Add Employee sidebar.
+  ['employees','addemployee'].forEach(function(id){
+    addRows(id,0.0,12.2,[
+      [11.3,4.2,'executive','Dashboard'],
+      [15.6,4.0,'sales','Sales Entry'],
+      [19.7,3.9,'evaluation','Operations','checklist'],
+      [23.5,3.9,'employees','Employees'],
+      [27.2,3.2,'employees','Employee Directory'],
+      [30.2,3.2,'addemployee','Add Employee'],
+      [33.2,3.1,null,'Availability','soon'],
+      [36.1,3.1,null,'Wage History','soon'],
+      [39.0,3.1,null,'Documents','soon'],
+      [41.9,3.1,'evaluation','Training','training'],
+      [44.8,3.1,'evaluation','Performance Notes','employeeperf'],
+      [47.7,3.1,null,'Roles & Permissions','soon'],
+      [51.0,4.0,'schedule','Scheduling'],
+      [55.0,4.0,'time','Time Entries'],
+      [59.0,4.0,'payroll','Payroll'],
+      [63.0,4.0,'weekly','Reports'],
+      [67.0,4.0,null,'Food Cost','soon'],
+      [71.0,4.0,null,'Inventory','soon'],
+      [75.0,4.0,'evaluation','Food Safety','checklist'],
+      [79.0,4.0,null,'Administration','soon'],
+      [83.0,4.0,null,'Settings','soon']
+    ]);
+  });
+
+  // Time Entries has its own compact sidebar.
+  addRows('time',0.0,11.6,[
+    [7.2,5.0,'executive','Dashboard'],
+    [12.2,5.0,'sales','Sales Entry'],
+    [17.2,5.0,'time','Time Entries'],
+    [22.2,5.0,'schedule','Scheduling'],
+    [27.2,5.0,'employees','Employees'],
+    [32.2,5.0,'restaurant','Restaurant'],
+    [37.2,5.0,'payroll','Payroll'],
+    [42.2,5.0,'weekly','Reports'],
+    [47.2,5.0,null,'Settings','soon']
+  ]);
+
+  // Payroll composite mock-up: sidebar is only the left portion of the first panel.
+  addRows('payroll',0.0,7.6,[
+    [5.3,3.9,'executive','Brand / Dashboard'],
+    [9.2,4.0,'restaurant','Dashboard'],
+    [13.2,4.0,'sales','Sales Entry'],
+    [17.2,4.0,'employees','Employees'],
+    [21.2,4.0,'schedule','Scheduling'],
+    [25.2,4.0,'time','Time Entries'],
+    [29.2,4.0,'payroll','Payroll'],
+    [33.2,4.0,'weekly','Reports'],
+    [37.2,4.0,null,'Inventory','soon'],
+    [41.2,4.0,'evaluation','Operations','checklist'],
+    [45.2,4.0,null,'Administration','soon']
+  ]);
+
+  // Report screens use the N&Partners reporting shell.
+  ['weekly','weeklyosmows','monthly','quarterly','labour'].forEach(function(id){
+    addRows(id,0.0,13.8,[
+      [7.7,5.0,'executive','Executive Command Centre'],
+      [12.7,4.3,'restaurant','Dashboard'],
+      [16.8,4.1,'sales','Sales Entry'],
+      [20.7,4.1,'weekly','Reports'],
+      [27.0,4.2,'labour','Labour'],
+      [31.2,4.2,'payroll','Payroll'],
+      [35.4,4.2,null,'Food Cost','soon'],
+      [39.6,4.2,'evaluation','Operations','checklist'],
+      [43.8,4.2,'employees','Employees'],
+      [48.0,4.2,'schedule','Schedules'],
+      [52.2,4.2,'time','Time Entries'],
+      [56.4,4.2,'evaluation','Training','training'],
+      [60.6,4.2,null,'Tasks','soon'],
+      [64.8,4.2,null,'Maintenance','soon'],
+      [69.0,4.2,'evaluation','Food Safety','checklist'],
+      [73.2,4.2,null,'Approvals','soon'],
+      [77.4,4.2,null,'Administration','soon']
+    ]);
+  });
+
+  // Evaluation & Compliance sidebar.
+  addRows('evaluation',0.0,13.0,[
+    [8.5,4.4,'executive','Dashboard'],
+    [14.6,3.8,'evaluation','Round Guides','checklist'],
+    [18.2,3.8,'evaluation','Steritech Evaluations','comparison'],
+    [21.8,3.8,'evaluation','Internal Store Evaluations','checklist'],
+    [25.4,3.8,'evaluation','Corrective Actions','corrective'],
+    [29.0,3.8,'evaluation','Training','training'],
+    [32.6,3.8,'evaluation','Challenge Review','challenge'],
+    [36.2,3.8,'evaluation','Readiness','readiness'],
+    [39.8,3.8,'evaluation','Round Comparison','comparison'],
+    [43.4,3.8,'evaluation','Evaluation History','comparison'],
+    [51.8,4.0,'evaluation','Manager Performance','managerperf'],
+    [55.8,4.0,'evaluation','Employee Performance','employeeperf'],
+    [64.0,4.0,null,'Users & Roles','soon'],
+    [67.7,4.0,null,'Locations','soon'],
+    [71.5,4.0,null,'Settings','soon']
+  ]);
+
+  // Schedule is a print/work screen with no sidebar. Add invisible navigation to the NAND logo only.
+  const sched=document.getElementById('screen-schedule');
+  if(sched){
+    clear(sched);
+    box(sched,1.0,1.0,12.0,10.0,go('executive','Executive Command Centre'),'Back to Executive Command Centre');
+    // Re-add the schedule workflow buttons from workable test mode if they were removed by clear().
+    box(sched,73.6,2.0,11.5,8.0,function(){npopTest.scheduleStatus='Approved';if(typeof npopPersist==='function')npopPersist();flash('Schedule approved');},'Approve Schedule');
+    box(sched,85.0,2.0,13.2,8.0,function(){npopTest.scheduleStatus='Published';if(typeof npopPersist==='function')npopPersist();flash('Schedule published — ready for Time Entries');},'Publish Schedule');
+  }
+
+  // Quick actions on Restaurant Dashboard.
+  const rd=document.getElementById('screen-restaurant');
+  if(rd){
+    [
+      [77.3,78.7,5.6,6.0,'sales','Sales Entry'],
+      [83.0,78.7,5.6,6.0,'labour','Labour Entry'],
+      [77.3,84.8,5.6,6.0,'schedule','Schedule'],
+      [88.7,84.8,5.6,6.0,'evaluation','Food Safety Log','checklist'],
+      [83.0,90.8,5.6,5.5,'payroll','Payroll Approval']
+    ].forEach(function(r){box(rd,r[0],r[1],r[2],r[3],go(r[4],r[5],r[6]),r[5]);});
+  }
+
+  // Executive quick actions.
+  const ex=document.getElementById('screen-executive');
+  if(ex){
+    [
+      [73.2,85.0,6.1,5.5,'sales','Sales Entry'],
+      [79.8,85.0,6.1,5.5,'addemployee','Add Employee'],
+      [86.4,85.0,6.1,5.5,'schedule','Schedule'],
+      [93.0,85.0,6.0,5.5,'payroll','Approve Payroll'],
+      [86.4,91.0,6.1,5.4,'weekly','View Reports'],
+      [79.8,91.0,6.1,5.4,'evaluation','Food Safety Log','checklist']
+    ].forEach(function(r){box(ex,r[0],r[1],r[2],r[3],go(r[4],r[5],r[6]),r[5]);});
+  }
+
+  flash('Navigation activated across the staging modules.');
+})();
+</script>
+
 </body>
 </html>
