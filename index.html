@@ -1445,6 +1445,78 @@ function mountPayrollLive(){
 function mountNpopWorkable(){mountSalesLive();mountEmployeesLive();mountAddEmployeeLive();mountTimeLive();mountPayrollLive();npopFlash('Workable staging mode loaded')}
 setTimeout(mountNpopWorkable,260);
 
+
+/* === Workable staging expansion: Executive quick actions + Schedule === */
+function mountExecutiveLive(){
+ const p=document.getElementById('screen-executive');if(!p||p.dataset.liveWorkable)return;p.dataset.liveWorkable='1';
+ // Sidebar / quick actions remain visually identical; these transparent hit areas make them functional.
+ const go=(id,msg)=>()=>{npopFlash(msg||('Opening '+id));show(id)};
+ [
+  [1.3,16.9,11.9,4.6,'restaurant','Restaurant dashboard'],
+  [1.3,25.4,11.9,4.6,'employees','Employee management'],
+  [1.3,29.9,11.9,4.6,'schedule','Weekly schedule'],
+  [1.3,34.2,11.9,4.6,'time','Time entries'],
+  [1.3,38.6,11.9,4.6,'payroll','Payroll'],
+  [1.3,43.2,11.9,4.6,'weekly','Reports'],
+  [1.3,47.5,11.9,4.6,'monthly','Food cost / reports']
+ ].forEach(x=>clickbox(p,x[0],x[1],x[2],x[3],go(x[4],x[5]),x[5]));
+ [
+  [73.4,85.1,6.3,5.7,'sales','Sales Entry'],
+  [80.2,85.1,6.3,5.7,'addemployee','Add Employee'],
+  [87.0,85.1,6.3,5.7,'schedule','Schedule'],
+  [93.6,85.1,5.7,5.7,'payroll','Approve Payroll'],
+  [86.9,91.1,6.3,5.5,'weekly','View Reports']
+ ].forEach(x=>clickbox(p,x[0],x[1],x[2],x[3],go(x[4],x[5]),x[5]));
+}
+
+function mountRestaurantLive(){
+ const p=document.getElementById('screen-restaurant');if(!p||p.dataset.liveWorkable)return;p.dataset.liveWorkable='1';
+ // Make the approved restaurant dashboard cards/links testable without changing appearance.
+ clickbox(p,1.2,16.8,12.0,4.8,()=>show('sales'),'Sales Entry');
+ clickbox(p,1.2,25.5,12.0,4.6,()=>show('employees'),'Employees');
+ clickbox(p,1.2,30.0,12.0,4.6,()=>show('schedule'),'Schedule');
+ clickbox(p,1.2,34.4,12.0,4.6,()=>show('time'),'Time Entries');
+ clickbox(p,1.2,38.9,12.0,4.6,()=>show('payroll'),'Payroll');
+ clickbox(p,1.2,43.3,12.0,4.6,()=>show('weekly'),'Reports');
+}
+
+function mountScheduleLive(){
+ const p=document.getElementById('screen-schedule');if(!p||p.dataset.liveWorkable)return;p.dataset.liveWorkable='1';
+ if(!npopTest.schedule){
+  npopTest.schedule=[
+   {position:'Manager',employee:'Aymen Khan',mon:'10:00-17:00',tue:'10:00-17:00',wed:'OFF',thu:'OFF',fri:'10:00-17:00',sat:'OFF',sun:'OFF'},
+   {position:'Supervisor',employee:'Lesly Martinez',mon:'12:00-20:00',tue:'12:00-20:00',wed:'12:00-20:00',thu:'OFF',fri:'12:00-20:00',sat:'OFF',sun:'OFF'},
+   {position:'Cashier',employee:'Laura Smith',mon:'10:00-17:00',tue:'10:00-17:00',wed:'10:00-17:00',thu:'10:00-17:00',fri:'10:00-17:00',sat:'OFF',sun:'OFF'},
+   {position:'Cook',employee:'Tony Nguyen',mon:'12:00-20:00',tue:'12:00-20:00',wed:'12:00-20:00',thu:'12:00-20:00',fri:'12:00-20:00',sat:'OFF',sun:'OFF'}
+  ];npopPersist();
+ }
+ const box=document.createElement('div');box.className='npop-live-table';box.id='scheduleLiveTable';
+ Object.assign(box.style,{left:'1.55%',top:'22.25%',width:'97.0%',height:'38.5%',zIndex:'18'});p.appendChild(box);
+ const shifts=['OFF','10:00-17:00','12:00-20:00','16:00-22:00','22:00-06:00'];
+ const hrs=v=>{if(!v||v==='OFF')return 0;let q=v.split('-'),a=q[0].split(':').map(Number),b=q[1].split(':').map(Number),m1=a[0]*60+a[1],m2=b[0]*60+b[1];if(m2<m1)m2+=1440;return (m2-m1)/60};
+ const draw=()=>{
+  const days=['mon','tue','wed','thu','fri','sat','sun'];
+  let weekly=0,dayTotals=Object.fromEntries(days.map(d=>[d,0]));
+  let body=npopTest.schedule.map((r,i)=>{
+   let rowTotal=0;let cells=days.map(d=>{let h=hrs(r[d]);rowTotal+=h;dayTotals[d]+=h;return '<td><select class="npop-mini-select sch-cell" data-i="'+i+'" data-d="'+d+'">'+shifts.map(s=>'<option '+(s===r[d]?'selected':'')+'>'+s+'</option>').join('')+'</select></td>'}).join('');
+   weekly+=rowTotal;return '<tr><td><b>'+r.position+'</b></td><td>'+r.employee+'</td>'+cells+'<td><b>'+rowTotal.toFixed(1)+'</b></td></tr>'
+  }).join('');
+  let avgRate=19,forecast=20300,cost=weekly*avgRate,labour=forecast?cost/forecast*100:0;
+  box.innerHTML='<table><thead><tr><th>Position</th><th>Employee</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th><th>Total</th></tr></thead><tbody>'+body+
+   '<tr><td colspan="2"><b>TOTAL HOURS</b></td>'+days.map(d=>'<td><b>'+dayTotals[d].toFixed(1)+'</b></td>').join('')+'<td><b>'+weekly.toFixed(1)+'</b></td></tr>'+
+   '<tr><td colspan="2"><b>PLANNED LABOUR %</b></td><td colspan="7">'+labour.toFixed(2)+'% · Estimated Labour Cost '+money2(cost)+' · Forecast '+money2(forecast)+'</td><td><b>Target 23%</b></td></tr></tbody></table>';
+  box.querySelectorAll('.sch-cell').forEach(e=>e.onchange=ev=>{let i=Number(ev.target.dataset.i),d=ev.target.dataset.d;npopTest.schedule[i][d]=ev.target.value;npopPersist();draw();npopFlash('Schedule updated')});
+ };
+ draw();
+ clickbox(p,73.6,2.0,11.5,8.0,()=>{npopTest.scheduleStatus='Approved';npopPersist();npopFlash('Schedule approved')},'Approve Schedule');
+ clickbox(p,85.0,2.0,13.2,8.0,()=>{npopTest.scheduleStatus='Published';npopPersist();npopFlash('Schedule published — ready for Time Entries')},'Publish Schedule');
+}
+
+function mountNpopWorkable(){
+ mountExecutiveLive();mountRestaurantLive();mountSalesLive();mountEmployeesLive();mountAddEmployeeLive();mountTimeLive();mountPayrollLive();mountScheduleLive();
+ npopFlash('NPOP staging test mode loaded');
+}
+
 </script>
 </body>
 </html>
