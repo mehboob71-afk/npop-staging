@@ -1383,15 +1383,81 @@ function mountSalesLive(){
  const oSafe=output(p,'sales_safe',68.4,68.45,7.0,3.1,'green');
  const oDeposit=output(p,'sales_deposit',91.0,28.15,6.1,3.2,'blue');
  const oShort=output(p,'sales_short',84.0,43.9,11.6,5.0,'red');oShort.style.justifyContent='center';oShort.style.fontSize='clamp(9px,1.25vw,20px)';
- function recalc(){Object.keys(f).forEach(k=>{d[k]=Number(f[k].value||0)});let taxes=d.tax1+d.tax2,expected=d.net+d.tax1+d.tax2-d.debit-d.paid;let cash=d.b100*100+d.b50*50+d.b20*20+d.b10*10+d.b5*5;let coin=d.c2*25+d.c1*25;let safe=d.s100*100+d.s50*50+d.s20*20+d.s10*10+d.s5*5+coin;let deposit=expected-cash;let over=cash-expected;oTax.textContent=money2(taxes);oExpected.textContent=money2(expected);oCash.textContent=money2(cash);oCoin.textContent=money2(coin);oSafe.textContent=money2(safe);oDeposit.textContent=money2(deposit);oShort.textContent=(over<0?'SHORT ':'OVER ')+money2(Math.abs(over));oShort.className='npop-output '+(over<0?'red':'green');npopPersist()}
+ function calcSales(){
+   Object.keys(f).forEach(k=>{d[k]=Number(f[k].value||0)});
+   const taxes=d.tax1+d.tax2;
+   const expected=d.net+d.tax1+d.tax2-d.debit-d.paid;
+   const cash=d.b100*100+d.b50*50+d.b20*20+d.b10*10+d.b5*5;
+   const coin=d.c2*25+d.c1*25;
+   const safe=d.s100*100+d.s50*50+d.s20*20+d.s10*10+d.s5*5+coin;
+   const deposit=expected-cash;
+   const over=cash-expected;
+   return {taxes,expected,cash,coin,safe,deposit,over};
+ }
+ function recalc(){
+   const m=calcSales();
+   oTax.textContent=money2(m.taxes);
+   oExpected.textContent=money2(m.expected);
+   oCash.textContent=money2(m.cash);
+   oCoin.textContent=money2(m.coin);
+   oSafe.textContent=money2(m.safe);
+   oDeposit.textContent=money2(m.deposit);
+   if(Math.abs(m.over)<0.005){
+     oShort.textContent=money2(0);
+     oShort.className='npop-output green';
+   }else{
+     oShort.textContent=(m.over<0?'SHORT ':'OVER ')+money2(Math.abs(m.over));
+     oShort.className='npop-output '+(m.over<0?'red':'green');
+   }
+   npopPersist();
+   return m;
+ }
+ function zeroSalesDraft(){
+   return {net:0,discount:0,tax1:0,tax2:0,debit:0,paid:0,paidTax:0,b100:0,b50:0,b20:0,b10:0,b5:0,c2:0,c1:0,s100:0,s50:0,s20:0,s10:0,s5:0,notes:''};
+ }
+ function resetSalesForm(message){
+   const z=zeroSalesDraft();
+   Object.keys(z).forEach(k=>{d[k]=z[k]});
+   Object.keys(f).forEach(k=>{f[k].value=0});
+   window._npopPaidReceipt='';
+   if(typeof fi!=='undefined'&&fi)fi.value='';
+   recalc();
+   npopPersist();
+   if(message)npopFlash(message);
+ }
  Object.values(f).forEach(e=>e.addEventListener('input',recalc));recalc();
  // Wire exact approved buttons without changing their appearance.
  const acts=[...p.querySelectorAll('.actionspot')];
- if(acts[0])acts[0].onclick=e=>{e.stopPropagation();npopTest.salesDraft=npopDefaults().salesDraft;npopPersist();show('sales');npopFlash('Sales entry reset')};
- if(acts[1])acts[1].onclick=e=>{e.stopPropagation();recalc();npopPersist();npopFlash('Draft saved')};
- function submit(next){recalc();if(d.paid>0&&!window._npopPaidReceipt){npopFlash('Paid Out receipt is required before submit');return}npopTest.salesRecords.unshift({date:new Date().toISOString(),restaurant:'Main Street',...JSON.parse(JSON.stringify(d)),status:'Submitted'});npopPersist();npopFlash(next?'Submitted — next restaurant':'Sales entry submitted')}
- if(acts[2])acts[2].onclick=e=>{e.stopPropagation();submit(false)};
- if(acts[3])acts[3].onclick=e=>{e.stopPropagation();submit(true)};
+ if(acts[0])acts[0].onclick=e=>{e.preventDefault();e.stopPropagation();resetSalesForm('Sales entry reset')};
+ if(acts[1])acts[1].onclick=e=>{e.preventDefault();e.stopPropagation();recalc();npopPersist();npopFlash('Draft saved')};
+ function submit(next){
+   const m=recalc();
+   if(d.paid>0&&!window._npopPaidReceipt){
+     npopFlash('Paid Out receipt is required before submit');
+     return;
+   }
+   const record={
+     date:new Date().toISOString(),
+     restaurant:'Main Street',
+     ...JSON.parse(JSON.stringify(d)),
+     adjustedNetSales:d.net+d.discount,
+     totalTax:m.taxes,
+     expectedCash:m.expected,
+     cashOnHand:m.cash,
+     coins:m.coin,
+     safeTotal:m.safe,
+     deposit:m.deposit,
+     overShort:m.over,
+     paidOutReceipt:window._npopPaidReceipt||'',
+     status:'Submitted'
+   };
+   npopTest.salesRecords.unshift(record);
+   resetSalesForm();
+   npopPersist();
+   npopFlash(next?'Submitted — next restaurant':'Sales entry submitted');
+ }
+ if(acts[2])acts[2].onclick=e=>{e.preventDefault();e.stopPropagation();submit(false)};
+ if(acts[3])acts[3].onclick=e=>{e.preventDefault();e.stopPropagation();submit(true)};
  // Add a real file selector over the paid-out receipt row.
  let fi=document.createElement('input');fi.type='file';fi.accept='.jpg,.jpeg,.png,.pdf';fi.className='npop-live';Object.assign(fi.style,{left:'15.0%',top:'86.8%',width:'16.4%',height:'3.4%',opacity:'0.01',cursor:'pointer'});fi.onchange=()=>{window._npopPaidReceipt=fi.files&&fi.files[0]?fi.files[0].name:'';npopFlash(window._npopPaidReceipt?'Paid Out receipt selected':'')};p.appendChild(fi);
 }
