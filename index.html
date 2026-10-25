@@ -1763,5 +1763,156 @@ function mountNpopWorkable(){
 </script>
 
 <script src="/sales-workflow-v2.js"></script>
+
+<script>
+/* === NPOP Sales Entry Reliable Submit v1 === */
+(function(){
+  function flash(msg){
+    if(typeof npopFlash==='function') npopFlash(msg);
+    else if(typeof toast==='function') toast(msg);
+  }
+  function persist(){
+    try{ if(typeof npopPersist==='function') npopPersist(); }catch(e){}
+  }
+  function num(id){
+    const el=document.getElementById(id);
+    return el ? Number(el.value||0) : 0;
+  }
+  function syncDraft(){
+    if(typeof npopTest==='undefined') return null;
+    npopTest.salesDraft=npopTest.salesDraft||{};
+    const d=npopTest.salesDraft;
+    const map={
+      net:'sales_net',discount:'sales_discount',tax1:'sales_tax1',tax2:'sales_tax2',
+      debit:'sales_debit',paid:'sales_paid',paidTax:'sales_paidTax',
+      b100:'sales_b100',b50:'sales_b50',b20:'sales_b20',b10:'sales_b10',b5:'sales_b5',
+      c2:'sales_c2',c1:'sales_c1',
+      s100:'sales_s100',s50:'sales_s50',s20:'sales_s20',s10:'sales_s10',s5:'sales_s5'
+    };
+    Object.keys(map).forEach(function(k){
+      const el=document.getElementById(map[k]);
+      if(el) d[k]=Number(el.value||0);
+    });
+    d.adjustedNetSales=Number(d.net||0)+Number(d.discount||0);
+    d.totalTax=Number(d.tax1||0)+Number(d.tax2||0);
+    d.expectedCash=Number(d.net||0)+Number(d.tax1||0)+Number(d.tax2||0)-Number(d.debit||0)-Number(d.paid||0);
+    d.cashOnHand=Number(d.b100||0)*100+Number(d.b50||0)*50+Number(d.b20||0)*20+Number(d.b10||0)*10+Number(d.b5||0)*5;
+    d.deposit=d.expectedCash-d.cashOnHand;
+    d.overShort=d.cashOnHand-d.expectedCash;
+    return d;
+  }
+  function validate(d){
+    if(!d) return "Sales Entry is not ready yet. Please reopen Sales Entry.";
+    if(!Number.isFinite(Number(d.net)) || Number(d.net)<=0) return "Enter Net Sale before submitting.";
+    const nonNegative=['discount','tax1','tax2','debit','paid','paidTax','b100','b50','b20','b10','b5','c2','c1','s100','s50','s20','s10','s5'];
+    for(const k of nonNegative){
+      if(!Number.isFinite(Number(d[k]||0)) || Number(d[k]||0)<0) return "Please correct negative or invalid values before submitting.";
+    }
+    if(Number(d.paid||0)>0 && !window._npopPaidReceipt) return "Paid Out receipt is required before submit.";
+    return "";
+  }
+  function saveDraft(){
+    const d=syncDraft();
+    if(!d){ flash("Unable to save draft. Reopen Sales Entry."); return; }
+    d.status="Draft";
+    d.savedAt=new Date().toISOString();
+    if(window._npopPaidReceipt) d.paidReceiptName=window._npopPaidReceipt;
+    npopTest.salesDraftStatus="Draft";
+    persist();
+    flash("Draft saved successfully");
+  }
+  function submit(next){
+    const d=syncDraft();
+    const problem=validate(d);
+    if(problem){ flash(problem); return; }
+
+    npopTest.salesRecords=Array.isArray(npopTest.salesRecords)?npopTest.salesRecords:[];
+    const now=new Date();
+    const record={
+      id:"SE-"+now.getTime(),
+      date:now.toISOString(),
+      submittedAt:now.toISOString(),
+      restaurant:(d.restaurant||"Main Street"),
+      manager:(d.manager||"Staging Manager"),
+      status:"Submitted",
+      paidReceiptName:window._npopPaidReceipt||"",
+      net:Number(d.net||0),
+      discount:Number(d.discount||0),
+      adjustedNetSales:Number(d.adjustedNetSales||0),
+      tax1:Number(d.tax1||0),
+      tax2:Number(d.tax2||0),
+      totalTax:Number(d.totalTax||0),
+      debit:Number(d.debit||0),
+      paid:Number(d.paid||0),
+      paidTax:Number(d.paidTax||0),
+      expectedCash:Number(d.expectedCash||0),
+      cashOnHand:Number(d.cashOnHand||0),
+      deposit:Number(d.deposit||0),
+      overShort:Number(d.overShort||0),
+      b100:Number(d.b100||0),b50:Number(d.b50||0),b20:Number(d.b20||0),b10:Number(d.b10||0),b5:Number(d.b5||0),
+      c2:Number(d.c2||0),c1:Number(d.c1||0),
+      s100:Number(d.s100||0),s50:Number(d.s50||0),s20:Number(d.s20||0),s10:Number(d.s10||0),s5:Number(d.s5||0)
+    };
+    npopTest.salesRecords.unshift(record);
+    d.status="Submitted";
+    d.submittedAt=record.submittedAt;
+    d.lastSubmissionId=record.id;
+    npopTest.salesDraftStatus="Submitted";
+    persist();
+
+    if(next){
+      const defaults=(typeof npopDefaults==='function'?npopDefaults():null);
+      npopTest.salesDraft=defaults&&defaults.salesDraft?JSON.parse(JSON.stringify(defaults.salesDraft)):{};
+      npopTest.salesDraftStatus="Draft";
+      window._npopPaidReceipt="";
+      persist();
+      flash("Sales submitted — ready for next restaurant");
+      setTimeout(function(){ try{ location.reload(); }catch(e){} },650);
+    }else{
+      flash("Sales entry submitted successfully");
+    }
+  }
+  function makeButton(parent,left,width,label,handler){
+    const b=document.createElement('button');
+    b.type='button';
+    b.className='npop-sales-submit-fix';
+    b.setAttribute('aria-label',label);
+    b.title=label;
+    Object.assign(b.style,{
+      position:'absolute',left:left+'%',top:'94.0%',width:width+'%',height:'4.25%',
+      zIndex:'80',background:'transparent',border:'0',padding:'0',cursor:'pointer'
+    });
+    b.addEventListener('click',function(e){
+      e.preventDefault();e.stopPropagation();handler();
+    });
+    parent.appendChild(b);
+  }
+  function install(){
+    const p=document.getElementById('screen-sales');
+    if(!p) return;
+    p.querySelectorAll('.npop-sales-submit-fix').forEach(function(x){x.remove();});
+    makeButton(p,25.13,13.28,'Save Draft',saveDraft);
+    makeButton(p,39.45,16.73,'Submit Sales Entry',function(){submit(false);});
+    makeButton(p,56.96,21.17,'Submit and Next Restaurant',function(){submit(true);});
+
+    const fileInput=[...p.querySelectorAll('input[type="file"]')].find(function(x){
+      return (x.accept||'').includes('pdf') || (x.className||'').includes('npop-live');
+    });
+    if(fileInput){
+      fileInput.addEventListener('change',function(){
+        window._npopPaidReceipt=fileInput.files&&fileInput.files[0]?fileInput.files[0].name:'';
+        if(window._npopPaidReceipt){
+          if(typeof npopTest!=='undefined'&&npopTest.salesDraft) npopTest.salesDraft.paidReceiptName=window._npopPaidReceipt;
+          persist();
+          flash("Paid Out receipt selected");
+        }
+      });
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){setTimeout(install,500);});
+  else setTimeout(install,500);
+})();
+</script>
+
 </body>
 </html>
